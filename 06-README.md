@@ -1,0 +1,189 @@
+# Personal Blog
+
+A fast, static personal website and blog built with [Astro](https://astro.build). The home
+page is a personal introduction with hobby cards on top of an animated background; the blog
+section turns Markdown files into articles. Everything is pre-rendered at build time into plain HTML/CSS/JS in `dist/`, which is served by Nginx.
+
+## Table of contents
+
+- [Project overview](#project-overview)
+- [Tech stack](#tech-stack)
+- [Directory structure](#directory-structure)
+- [Getting started](#getting-started)
+- [Customizing](#customizing)
+- [Deployment (Nginx)](#deployment-nginx)
+
+## Project overview
+
+**Pages**
+
+| Route                   | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `/`                     | Home: avatar, name, role, short intro, hobby cards, latest posts  |
+| `/about/`               | Longer bio and hobbies                                            |
+| `/blog/`, `/blog/2/` …  | Paginated list of all posts                                       |
+| `/posts/<slug>/`        | A single post                                                     |
+| `/tags/`, `/tags/<tag>/`| All tags / posts with a given tag                                 |
+| `/archive/`             | All posts grouped by year                                         |
+| `/search/`              | Client-side full-text search                                      |
+| `/404.html`             | Custom "not found" page                                           |
+| `/rss.xml`, `/sitemap-index.xml`, `/robots.txt`, `/search.json` | Generated feeds and indexes |
+
+**Features**
+
+- **Animated background** — drifting aurora color glows plus a particle "constellation" that
+  reacts to the mouse. Theme-aware, paused in background tabs, static for visitors who prefer
+  reduced motion, with a CSS gradient fallback when JavaScript is off.
+- **Frosted-glass UI** with light/dark theme toggle (remembers the choice, follows the OS by default).
+- **Blog**: Markdown/MDX posts, tags, archive, pagination, drafts, reading time (English + CJK),
+  table of contents, build-time syntax highlighting with a copy button, optimized cover images.
+- **SEO**: canonical URLs, Open Graph/Twitter tags, sitemap, RSS, robots.txt.
+- **Responsive and accessible**: works down to phone width, skip link, keyboard focus styles.
+- **Tiny output**: the packaged site is ~15 KB gzipped (before you add posts/images).
+
+## Tech stack
+
+| Area            | Technology                                                                 |
+| --------------- | -------------------------------------------------------------------------- |
+| Framework       | [Astro](https://astro.build) 7 — static site generation (`output: static`) |
+| Language        | TypeScript (strict), Astro components, plain CSS (custom properties)       |
+| Content         | Astro Content Collections (Markdown / MDX via `@astrojs/mdx`)              |
+| Code highlighting | Shiki (built into Astro), dual light/dark themes                          |
+| Images          | `astro:assets` + `sharp` (converted to responsive WebP at build time)      |
+| Feeds / SEO     | `@astrojs/rss`, `@astrojs/sitemap`                                         |
+| Background      | HTML Canvas 2D + `requestAnimationFrame` (no libraries)                    |
+| Search          | Static JSON index + vanilla JS                                             |
+| Type checking   | `@astrojs/check`, TypeScript                                               |
+| Runtime (build) | Node.js ≥ 22.12                                                            |
+| Web server      | Nginx (any recent version; config tested with 1.28)                        |
+
+## Directory structure
+
+```
+.
+├── astro.config.ts            # Astro config: site URL, integrations, code-highlight themes
+├── package.json               # Scripts and dependencies
+├── tsconfig.json
+├── deploy/
+│   └── nginx.conf             # Production Nginx server config (see Deployment)
+├── public/                    # Copied to dist/ as-is
+│   └── favicon.svg
+├── scripts/
+│   ├── new-post.mjs           # `npm run new` — scaffold a draft post
+│   └── package.mjs            # `npm run package` — tar.gz the built site
+└── src/
+    ├── config.ts              # Site settings: URL, title, author, nav, social links
+    ├── content.config.ts      # Post frontmatter schema
+    ├── data/
+    │   └── profile.ts         # Personal info: role, intro, bio, hobbies, avatar
+    ├── content/
+    │   └── posts/             # Your posts (*.md / *.mdx) — file name = URL slug
+    ├── components/
+    │   ├── DynamicBackground.astro  # Animated aurora + particle background
+    │   ├── BaseHead.astro     # <head>: meta/SEO tags, theme bootstrap
+    │   ├── Header.astro       # Top nav, search link, theme toggle
+    │   ├── Footer.astro
+    │   ├── ThemeToggle.astro
+    │   ├── PostList.astro     # Post cards used by lists
+    │   ├── Pagination.astro
+    │   ├── FormattedDate.astro
+    │   ├── Icon.astro         # Inline SVG icon component
+    │   └── icons.ts           # Icon shapes
+    ├── layouts/
+    │   ├── BaseLayout.astro   # Every page: head, background, header, glass panel, footer
+    │   └── PostLayout.astro   # Article page: meta, cover, TOC, prev/next, copy buttons
+    ├── pages/                 # File-based routes (see Project overview)
+    │   ├── index.astro  about.astro  archive.astro  search.astro  404.astro
+    │   ├── blog/[...page].astro      posts/[...slug].astro
+    │   ├── tags/index.astro          tags/[tag].astro
+    │   └── rss.xml.ts  search.json.ts  robots.txt.ts
+    ├── styles/
+    │   └── global.css         # Design tokens (colors, glass, fonts) and article styles
+    └── utils/
+        └── posts.ts           # Post queries, tag slugs, reading time
+```
+
+Generated (git-ignored): `node_modules/`, `.astro/`, `dist/` (build output), `release/` (tarballs).
+
+## Getting started
+
+```bash
+npm install
+npm run dev          
+```
+
+| Command                    | What it does                                                    |
+| -------------------------- | --------------------------------------------------------------- |
+| `npm run dev`              | Local dev server with hot reload                                |
+| `npm run new -- "Title"`   | Create `src/content/posts/title.md` as a draft                  |
+| `npm run check`            | Type-check components and validate post frontmatter             |
+| `npm run build`            | Build the static site into `dist/`                              |
+| `npm run preview`          | Serve `dist/` locally (http://localhost:4321) to double-check   |
+| `npm run package`          | check + build + create `release/blog-dist-<timestamp>.tar.gz`   |
+
+## Customizing
+
+| What                                  | Where                                                         |
+| ------------------------------------- | ------------------------------------------------------------- |
+| Domain, site title, your name, nav    | `src/config.ts` (`SITE.url` must be your real domain — used for canonical URLs, RSS, sitemap) |
+| Social links (hidden while empty)     | `SOCIAL_LINKS` in `src/config.ts`                             |
+| Role, location, intro, bio, hobbies   | `src/data/profile.ts` (location hidden while empty)           |
+| Avatar photo                          | Put `avatar.jpg` in `public/`, set `avatar: '/avatar.jpg'` in `profile.ts` (initials shown otherwise) |
+| Hobby icons                           | `code, camera, book, music, mountain, gamepad, coffee, plane` (add more in `src/components/icons.ts`) |
+| Background colors / speed / particles | `PALETTES`, `BLOBS`, `makeParticles()` in `src/components/DynamicBackground.astro` |
+| Theme colors, glass opacity, fonts    | CSS variables at the top of `src/styles/global.css`           |
+| Favicon                               | `public/favicon.svg`                                          |
+
+## Deployment (Nginx)
+
+### 1. Build the bundle
+
+```bash
+npm ci               # clean install from package-lock.json
+npm run package      # → release/blog-dist-YYYYMMDD-HHMMSS.tar.gz
+```
+
+`npm run package` type-checks, builds into `dist/`, and archives the **contents** of `dist/`
+(`index.html` at the top level of the tarball). You can also just run `npm run build` and copy
+`dist/` with `rsync`:
+
+```bash
+rsync -avz --delete dist/ user@server:/var/www/blog/
+```
+
+### 2. Upload and extract
+
+```bash
+scp release/blog-dist-*.tar.gz user@server:/tmp/
+ssh user@server
+sudo mkdir -p /var/www/blog
+sudo tar -xzf /tmp/blog-dist-*.tar.gz -C /var/www/blog
+sudo chown -R www-data:www-data /var/www/blog   # Nginx user: www-data (Debian/Ubuntu), nginx (RHEL)
+```
+
+### 3. Configure Nginx
+
+Edit `server_name` and `root` in `deploy/nginx.conf`, then install it:
+
+```bash
+# Debian/Ubuntu
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/blog.conf
+sudo ln -s /etc/nginx/sites-available/blog.conf /etc/nginx/sites-enabled/blog.conf
+# RHEL/CentOS/Alpine: sudo cp deploy/nginx.conf /etc/nginx/conf.d/blog.conf
+
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+What the config does:
+
+| Concern        | Behavior                                                                          |
+| -------------- | --------------------------------------------------------------------------------- |
+| Clean URLs     | `try_files $uri $uri/ =404` — `/posts/foo/` → `posts/foo/index.html`; `/posts/foo` → 301 to `/posts/foo/` (relative redirect via `absolute_redirect off`) |
+| 404            | `error_page 404 /404.html` serves the site's custom page                          |
+| Caching        | `/_astro/*` (fingerprinted) → 1 year `immutable`; images/fonts → 7 days; `rss.xml` → 1 hour; HTML/JSON → `no-cache` so new content appears immediately |
+| Compression    | gzip for HTML, CSS, JS, JSON, XML, SVG                                            |
+| Security       | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `server_tokens off`, dotfiles denied |
+| Content types  | `rss.xml` served as `application/rss+xml`                                         |
+
+All response headers are set once at `server` level (cache policy comes from a `map`). Don't put
+`add_header` inside a `location` block — Nginx would then drop the server-level headers there.
