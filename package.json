@@ -14,6 +14,7 @@
     "check": "astro check",
     "package": "astro check && astro build && node scripts/package.mjs",
     "new": "node scripts/new-post.mjs",
+    "standalone": "astro build && node scripts/standalone.mjs",
     "astro": "astro"
   },
   "dependencies": {
