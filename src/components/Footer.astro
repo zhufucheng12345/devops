@@ -1,0 +1,58 @@
+---
+import { SITE, SOCIAL_LINKS } from '../config';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+	<div class="inner">
+		<p>&copy; {year} {SITE.author}</p>
+		{
+			SOCIAL_LINKS.length > 0 && (
+				<nav aria-label="Social">
+					{SOCIAL_LINKS.map((link) => (
+						<a href={link.href} rel={link.href.startsWith('http') ? 'me noopener' : undefined}>
+							{link.label}
+						</a>
+					))}
+				</nav>
+			)
+		}
+	</div>
+</footer>
+
+<style>
+	.site-footer {
+		border-top: 1px solid var(--surface-border);
+		background: var(--surface);
+		-webkit-backdrop-filter: var(--blur);
+		backdrop-filter: var(--blur);
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+	.inner {
+		max-width: calc(var(--wide) + var(--gutter) * 2);
+		margin: 0 auto;
+		padding: 1.5rem var(--gutter);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.5rem;
+	}
+	p {
+		margin: 0;
+	}
+	nav {
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+	a:hover {
+		color: var(--accent);
+	}
+</style>

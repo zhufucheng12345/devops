@@ -1,0 +1,32 @@
+---
+import type { GetStaticPaths, Page } from 'astro';
+import Pagination from '../../components/Pagination.astro';
+import PostList from '../../components/PostList.astro';
+import { SITE } from '../../config';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPosts, type Post } from '../../utils/posts';
+
+export const getStaticPaths = (async ({ paginate }) => {
+	const posts = await getPosts();
+	return paginate(posts, { pageSize: SITE.postsPerPage });
+}) satisfies GetStaticPaths;
+
+interface Props {
+	page: Page<Post>;
+}
+
+const { page } = Astro.props;
+const title = page.currentPage === 1 ? 'Blog' : `Blog — Page ${page.currentPage}`;
+---
+
+<BaseLayout title={title} description={`All posts on ${SITE.title}.`}>
+	<h1 class="page-title">Blog</h1>
+	{page.total > 0 && <p class="page-subtitle">{page.total} {page.total === 1 ? 'post' : 'posts'} so far.</p>}
+	{page.total === 0 ? <p class="muted">No posts yet — check back soon.</p> : <PostList posts={page.data} />}
+	<Pagination
+		prevUrl={page.url.prev}
+		nextUrl={page.url.next}
+		current={page.currentPage}
+		total={page.lastPage}
+	/>
+</BaseLayout>

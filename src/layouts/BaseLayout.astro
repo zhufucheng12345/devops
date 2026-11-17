@@ -1,0 +1,58 @@
+---
+import BaseHead, { type Props as HeadProps } from '../components/BaseHead.astro';
+import DynamicBackground from '../components/DynamicBackground.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE } from '../config';
+
+type Props = HeadProps & {
+	/** Render the page directly on the background, without the frosted-glass panel. */
+	bare?: boolean;
+};
+
+const { bare = false, ...head } = Astro.props;
+---
+
+<!doctype html>
+<html lang={SITE.lang}>
+	<head>
+		<BaseHead {...head} />
+		<slot name="head" />
+	</head>
+	<body>
+		<DynamicBackground />
+		<a class="skip-link sr-only" href="#content">Skip to content</a>
+		<Header />
+		<main id="content" class:list={{ bare }}>
+			{
+				bare ? (
+					<slot />
+				) : (
+					<div class="glass panel">
+						<slot />
+					</div>
+				)
+			}
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	main.bare {
+		max-width: calc(var(--wide) + var(--gutter) * 2);
+	}
+	.skip-link:focus {
+		position: fixed;
+		top: 0.5rem;
+		left: 0.5rem;
+		width: auto;
+		height: auto;
+		clip: auto;
+		padding: 0.5rem 1rem;
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		z-index: 100;
+	}
+</style>

@@ -1,0 +1,333 @@
+/* ---------- Design tokens ---------- */
+:root {
+	--bg: #f5f6fb;
+	--bg-soft: rgba(236, 238, 248, 0.75);
+	--fg: #161a2b;
+	--fg-soft: #343a52;
+	--muted: #5f6680;
+	--border: rgba(22, 26, 43, 0.1);
+	--accent: #4f46e5;
+	--accent-2: #c026d3;
+	--accent-soft: rgba(79, 70, 229, 0.1);
+	--code-bg: rgba(236, 238, 248, 0.9);
+	--shadow: 0 1px 2px rgba(20, 24, 60, 0.04), 0 8px 32px rgba(20, 24, 60, 0.08);
+
+	/* Frosted-glass panels that sit on top of the animated background. */
+	--surface: rgba(255, 255, 255, 0.62);
+	--surface-strong: rgba(255, 255, 255, 0.8);
+	--surface-border: rgba(255, 255, 255, 0.75);
+	--blur: blur(18px) saturate(160%);
+
+	/* Background (see DynamicBackground.astro). */
+	--glow-1: rgba(165, 180, 252, 0.55);
+	--glow-2: rgba(240, 171, 252, 0.45);
+	--glow-3: rgba(103, 232, 249, 0.4);
+	--grain-opacity: 0.035;
+	--vignette: rgba(245, 246, 251, 0.5);
+
+	--font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+		'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+	--width: 46rem;
+	--wide: 60rem;
+	--gutter: 1.25rem;
+	--radius: 10px;
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	--bg: #070a16;
+	--bg-soft: rgba(255, 255, 255, 0.05);
+	--fg: #eef0fb;
+	--fg-soft: #c9cde3;
+	--muted: #9097b5;
+	--border: rgba(255, 255, 255, 0.1);
+	--accent: #a5b4fc;
+	--accent-2: #f0abfc;
+	--accent-soft: rgba(165, 180, 252, 0.14);
+	--code-bg: rgba(255, 255, 255, 0.06);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 32px rgba(0, 0, 0, 0.35);
+
+	--surface: rgba(14, 18, 36, 0.58);
+	--surface-strong: rgba(14, 18, 36, 0.78);
+	--surface-border: rgba(255, 255, 255, 0.09);
+
+	--glow-1: rgba(79, 70, 229, 0.45);
+	--glow-2: rgba(147, 51, 234, 0.35);
+	--glow-3: rgba(8, 145, 178, 0.35);
+	--grain-opacity: 0.06;
+	--vignette: rgba(3, 5, 12, 0.65);
+	color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	scroll-padding-top: 1.5rem;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-sans);
+	font-size: 1.0625rem;
+	line-height: 1.7;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+main {
+	flex: 1;
+	width: 100%;
+	max-width: calc(var(--width) + var(--gutter) * 2);
+	margin: 0 auto;
+	padding: 2.5rem var(--gutter) 4rem;
+}
+
+a {
+	color: var(--accent);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2em;
+}
+a:hover {
+	text-decoration-thickness: 2px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+	color: var(--fg);
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.muted {
+	color: var(--muted);
+}
+
+/* Frosted-glass content panel used on every page except the home page. */
+.glass {
+	background: var(--surface);
+	border: 1px solid var(--surface-border);
+	border-radius: 20px;
+	box-shadow: var(--shadow);
+	-webkit-backdrop-filter: var(--blur);
+	backdrop-filter: var(--blur);
+}
+.panel {
+	padding: 2.5rem 2.5rem 3rem;
+}
+@media (max-width: 640px) {
+	.panel {
+		padding: 1.75rem 1.25rem 2rem;
+		border-radius: 16px;
+	}
+}
+
+/* Gradient text for headings. */
+.gradient-text {
+	background: linear-gradient(100deg, var(--fg) 0%, var(--accent) 45%, var(--accent-2) 100%);
+	background-size: 200% auto;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+.page-title {
+	font-size: 2rem;
+	margin: 0 0 0.25rem;
+}
+.page-subtitle {
+	color: var(--muted);
+	margin: 0 0 2rem;
+}
+
+/* ---------- Tags ---------- */
+.tag {
+	display: inline-block;
+	padding: 0.05rem 0.6rem;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-size: 0.8rem;
+	line-height: 1.6;
+	text-decoration: none;
+	white-space: nowrap;
+}
+.tag:hover {
+	text-decoration: underline;
+}
+
+/* ---------- Article typography ---------- */
+.prose {
+	color: var(--fg-soft);
+	overflow-wrap: break-word;
+}
+.prose > :first-child {
+	margin-top: 0;
+}
+.prose h2 {
+	font-size: 1.5rem;
+	margin: 2.4rem 0 0.8rem;
+	padding-bottom: 0.3rem;
+	border-bottom: 1px solid var(--border);
+}
+.prose h3 {
+	font-size: 1.2rem;
+	margin: 2rem 0 0.6rem;
+}
+.prose h4 {
+	font-size: 1.05rem;
+	margin: 1.6rem 0 0.5rem;
+}
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose table,
+.prose pre {
+	margin: 0 0 1.2rem;
+}
+.prose li + li {
+	margin-top: 0.3rem;
+}
+.prose blockquote {
+	padding: 0.2rem 1rem;
+	border-left: 3px solid var(--accent);
+	background: var(--bg-soft);
+	border-radius: 0 var(--radius) var(--radius) 0;
+	color: var(--muted);
+}
+.prose blockquote p {
+	margin: 0.6rem 0;
+}
+.prose hr {
+	border: 0;
+	border-top: 1px solid var(--border);
+	margin: 2.5rem 0;
+}
+.prose img {
+	border-radius: var(--radius);
+	display: block;
+	margin: 1.5rem auto;
+}
+.prose table {
+	display: block;
+	overflow-x: auto;
+	border-collapse: collapse;
+	font-size: 0.95rem;
+}
+.prose th,
+.prose td {
+	border: 1px solid var(--border);
+	padding: 0.45rem 0.8rem;
+	text-align: left;
+}
+.prose th {
+	background: var(--bg-soft);
+}
+.prose :not(pre) > code {
+	font-family: var(--font-mono);
+	font-size: 0.88em;
+	padding: 0.12em 0.4em;
+	border-radius: 5px;
+	background: var(--code-bg);
+	border: 1px solid var(--border);
+}
+.prose pre {
+	font-family: var(--font-mono);
+	font-size: 0.88rem;
+	line-height: 1.6;
+	padding: 1rem 1.1rem;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	overflow-x: auto;
+	tab-size: 4;
+}
+.prose pre code {
+	font-family: inherit;
+}
+
+/* Shiki dual-theme: switch to the dark token colors when dark mode is on. */
+:root[data-theme='dark'] .astro-code,
+:root[data-theme='dark'] .astro-code span {
+	color: var(--shiki-dark) !important;
+	background-color: var(--shiki-dark-bg) !important;
+	font-style: var(--shiki-dark-font-style) !important;
+	font-weight: var(--shiki-dark-font-weight) !important;
+	text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+/* Copy-to-clipboard button added to code blocks by PostLayout. */
+.code-block {
+	position: relative;
+}
+.code-block .copy-btn {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	padding: 0.15rem 0.55rem;
+	font: 0.75rem var(--font-sans);
+	color: var(--muted);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+.code-block:hover .copy-btn,
+.code-block .copy-btn:focus-visible {
+	opacity: 1;
+}
+@media (hover: none) {
+	.code-block .copy-btn {
+		opacity: 1;
+	}
+}

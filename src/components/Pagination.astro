@@ -1,0 +1,38 @@
+---
+interface Props {
+	prevUrl?: string;
+	nextUrl?: string;
+	current: number;
+	total: number;
+}
+
+const { prevUrl, nextUrl, current, total } = Astro.props;
+---
+
+{
+	total > 1 && (
+		<nav class="pagination" aria-label="Pagination">
+			{prevUrl ? <a href={prevUrl} rel="prev">← Newer</a> : <span />}
+			<span class="muted">
+				Page {current} of {total}
+			</span>
+			{nextUrl ? <a href={nextUrl} rel="next">Older →</a> : <span />}
+		</nav>
+	)
+}
+
+<style>
+	.pagination {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		margin-top: 2.5rem;
+		font-size: 0.95rem;
+	}
+	a {
+		text-decoration: none;
+	}
+	a[rel='next'] {
+		justify-self: end;
+	}
+</style>

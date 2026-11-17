@@ -1,0 +1,187 @@
+---
+import { SITE } from '../config';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Search" description="Search all posts." noindex>
+	<h1 class="page-title">Search</h1>
+	<p class="page-subtitle">Search titles, tags and post content.</p>
+
+	<form id="search-form" role="search" action="/search/" method="get">
+		<label for="q" class="sr-only">Search posts</label>
+		<input id="q" name="q" type="search" placeholder="Type to search…" autocomplete="off" autofocus />
+	</form>
+
+	<p id="search-status" class="muted" aria-live="polite"></p>
+	<ul id="search-results"></ul>
+
+	<template id="result-template">
+		<li>
+			<a class="title"></a>
+			<p class="meta"></p>
+			<p class="snippet"></p>
+		</li>
+	</template>
+</BaseLayout>
+
+<script define:vars={{ locale: SITE.locale }}>
+	window.__SEARCH_LOCALE__ = locale;
+</script>
+
+<script>
+	interface Entry {
+		title: string;
+		description: string;
+		tags: string[];
+		date: string;
+		url: string;
+		content: string;
+	}
+
+	const input = document.getElementById('q') as HTMLInputElement;
+	const status = document.getElementById('search-status')!;
+	const list = document.getElementById('search-results')!;
+	const template = document.getElementById('result-template') as HTMLTemplateElement;
+	const locale = (window as unknown as { __SEARCH_LOCALE__?: string }).__SEARCH_LOCALE__ ?? 'en-US';
+
+	let index: Entry[] | null = null;
+
+	async function loadIndex(): Promise<Entry[]> {
+		if (!index) {
+			const res = await fetch('/search.json');
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			index = (await res.json()) as Entry[];
+		}
+		return index;
+	}
+
+	function snippet(entry: Entry, terms: string[]): string {
+		const text = entry.content;
+		const lower = text.toLowerCase();
+		const hit = terms.map((t) => lower.indexOf(t)).find((i) => i >= 0);
+		if (hit === undefined) return entry.description;
+		const start = Math.max(0, hit - 60);
+		const end = start + 180;
+		return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '');
+	}
+
+	function score(entry: Entry, terms: string[]): number {
+		const title = entry.title.toLowerCase();
+		const desc = entry.description.toLowerCase();
+		const tags = entry.tags.join(' ').toLowerCase();
+		const body = entry.content.toLowerCase();
+		let total = 0;
+		for (const t of terms) {
+			const s = (title.includes(t) ? 10 : 0) + (tags.includes(t) ? 6 : 0) + (desc.includes(t) ? 4 : 0) + (body.includes(t) ? 1 : 0);
+			if (s === 0) return 0; // every term must match somewhere
+			total += s;
+		}
+		return total;
+	}
+
+	async function run(query: string) {
+		const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+		list.replaceChildren();
+		if (terms.length === 0) {
+			status.textContent = '';
+			return;
+		}
+		let entries: Entry[];
+		try {
+			entries = await loadIndex();
+		} catch {
+			status.textContent = 'Could not load the search index.';
+			return;
+		}
+		const results = entries
+			.map((e) => ({ e, s: score(e, terms) }))
+			.filter((r) => r.s > 0)
+			.sort((a, b) => b.s - a.s);
+
+		status.textContent = `${results.length} ${results.length === 1 ? 'result' : 'results'} for “${query.trim()}”`;
+		for (const { e } of results) {
+			const node = template.content.cloneNode(true) as DocumentFragment;
+			const link = node.querySelector('.title') as HTMLAnchorElement;
+			link.href = e.url;
+			link.textContent = e.title;
+			node.querySelector('.meta')!.textContent = [
+				new Date(e.date).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }),
+				...e.tags.map((t) => `#${t}`),
+			].join('  ·  ');
+			node.querySelector('.snippet')!.textContent = snippet(e, terms);
+			list.appendChild(node);
+		}
+	}
+
+	let timer: number | undefined;
+	input.addEventListener('input', () => {
+		clearTimeout(timer);
+		timer = window.setTimeout(() => {
+			const q = input.value;
+			const url = new URL(location.href);
+			if (q) url.searchParams.set('q', q);
+			else url.searchParams.delete('q');
+			history.replaceState(null, '', url);
+			run(q);
+		}, 150);
+	});
+	document.getElementById('search-form')!.addEventListener('submit', (e) => {
+		e.preventDefault();
+		run(input.value);
+	});
+
+	const initial = new URLSearchParams(location.search).get('q');
+	if (initial) {
+		input.value = initial;
+		run(initial);
+	}
+</script>
+
+<style>
+	input {
+		width: 100%;
+		padding: 0.75rem 1rem;
+		font: inherit;
+		color: var(--fg);
+		background: var(--bg-soft);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+	input:focus {
+		outline: 2px solid var(--accent);
+		outline-offset: 0;
+		border-color: transparent;
+	}
+	#search-status {
+		margin: 1rem 0;
+		font-size: 0.9rem;
+	}
+	#search-results {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	#search-results :global(li) {
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--border);
+	}
+	#search-results :global(.title) {
+		font-weight: 600;
+		font-size: 1.1rem;
+		color: var(--fg);
+		text-decoration: none;
+	}
+	#search-results :global(.title:hover) {
+		color: var(--accent);
+	}
+	#search-results :global(.meta) {
+		margin: 0.15rem 0 0.3rem;
+		font-size: 0.82rem;
+		color: var(--muted);
+	}
+	#search-results :global(.snippet) {
+		margin: 0;
+		font-size: 0.95rem;
+		color: var(--fg-soft);
+	}
+</style>

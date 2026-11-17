@@ -1,0 +1,103 @@
+---
+import Icon from '../components/Icon.astro';
+import { SOCIAL_LINKS } from '../config';
+import { PROFILE } from '../data/profile';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="About" description={PROFILE.about[0]}>
+	<h1 class="page-title gradient-text">About me</h1>
+	<p class="page-subtitle">{PROFILE.role}</p>
+
+	<div class="prose">
+		{PROFILE.about.map((p) => <p>{p}</p>)}
+
+		<h2>Hobbies</h2>
+	</div>
+	<ul class="hobbies">
+		{
+			PROFILE.hobbies.map((h) => (
+				<li>
+					<span class="icon">
+						<Icon name={h.icon} size={18} />
+					</span>
+					<span>
+						<strong>{h.title}</strong> — {h.text}
+					</span>
+				</li>
+			))
+		}
+	</ul>
+
+	{
+		SOCIAL_LINKS.length > 0 && (
+			<>
+				<div class="prose find">
+					<h2>Find me</h2>
+				</div>
+				<ul class="links">
+					{SOCIAL_LINKS.map((link) => (
+						<li>
+							<a href={link.href} rel={link.href.startsWith('http') ? 'me noopener' : undefined}>
+								<Icon name={link.icon} size={18} />
+								{link.label}
+							</a>
+						</li>
+					))}
+				</ul>
+			</>
+		)
+	}
+</BaseLayout>
+
+<style>
+	.find {
+		margin-top: 2.4rem;
+	}
+	.hobbies,
+	.links {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.hobbies li {
+		display: flex;
+		gap: 0.8rem;
+		align-items: flex-start;
+		padding: 0.45rem 0;
+		color: var(--fg-soft);
+	}
+	.icon {
+		flex: none;
+		display: inline-grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 9px;
+		color: #fff;
+		background: linear-gradient(135deg, #6366f1, #a855f7 55%, #ec4899);
+	}
+	.hobbies strong {
+		color: var(--fg);
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+	.links a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.45rem 0.95rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		color: var(--fg);
+		text-decoration: none;
+		background: var(--bg-soft);
+	}
+	.links a:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+</style>

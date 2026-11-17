@@ -1,0 +1,96 @@
+---
+import { type Post, postUrl, readingTime, tagUrl } from '../utils/posts';
+import FormattedDate from './FormattedDate.astro';
+
+interface Props {
+	posts: Post[];
+}
+
+const { posts } = Astro.props;
+---
+
+<ul class="post-list">
+	{
+		posts.map((post) => (
+			<li>
+				<article>
+					<h2 class="title">
+						<a href={postUrl(post)}>{post.data.title}</a>
+						{post.data.draft && <span class="draft">Draft</span>}
+					</h2>
+					<p class="meta">
+						<FormattedDate date={post.data.pubDate} />
+						<span aria-hidden="true">·</span>
+						<span>{readingTime(post.body)} min read</span>
+					</p>
+					<p class="desc">{post.data.description}</p>
+					{post.data.tags.length > 0 && (
+						<p class="tags">
+							{post.data.tags.map((tag) => (
+								<a class="tag" href={tagUrl(tag)}>
+									{tag}
+								</a>
+							))}
+						</p>
+					)}
+				</article>
+			</li>
+		))
+	}
+</ul>
+
+<style>
+	.post-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	li {
+		padding: 1.4rem 0;
+		border-bottom: 1px solid var(--border);
+	}
+	li:first-child {
+		padding-top: 0;
+	}
+	li:last-child {
+		border-bottom: 0;
+	}
+	.title {
+		font-size: 1.3rem;
+		margin: 0 0 0.25rem;
+	}
+	.title a {
+		color: var(--fg);
+		text-decoration: none;
+	}
+	.title a:hover {
+		color: var(--accent);
+	}
+	.draft {
+		margin-left: 0.5rem;
+		padding: 0.05rem 0.45rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		vertical-align: middle;
+		border-radius: 4px;
+		background: #f59e0b;
+		color: #1d2125;
+	}
+	.meta {
+		display: flex;
+		gap: 0.4rem;
+		margin: 0 0 0.5rem;
+		font-size: 0.875rem;
+		color: var(--muted);
+	}
+	.desc {
+		margin: 0 0 0.6rem;
+		color: var(--fg-soft);
+	}
+	.tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin: 0;
+	}
+</style>

@@ -1,0 +1,333 @@
+---
+/**
+ * Full-screen animated background:
+ *  1. "aurora" — large, soft color glows drifting slowly (rendered at low resolution, so it is cheap
+ *     and naturally smooth),
+ *  2. "constellation" — small particles that drift, link up when close, and react to the pointer,
+ *  3. a faint film-grain + vignette overlay for depth.
+ *
+ * Theme-aware (light/dark), pauses while the tab is hidden, and renders a single still frame for
+ * visitors who prefer reduced motion. Without JavaScript a static CSS gradient is shown instead.
+ */
+---
+
+<div class="bg" aria-hidden="true">
+	<canvas class="bg-aurora"></canvas>
+	<canvas class="bg-particles"></canvas>
+	<div class="bg-grain"></div>
+	<div class="bg-vignette"></div>
+</div>
+
+<style>
+	.bg {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		/* Large viewport height: doesn't change when mobile URL bars show/hide while scrolling. */
+		height: 100vh;
+		height: 100lvh;
+		z-index: -1;
+		pointer-events: none;
+		overflow: hidden;
+		/* Static fallback (no JS / before the first frame). */
+		background:
+			radial-gradient(60vmax 60vmax at 15% 20%, var(--glow-1), transparent 60%),
+			radial-gradient(55vmax 55vmax at 85% 15%, var(--glow-2), transparent 60%),
+			radial-gradient(60vmax 60vmax at 70% 90%, var(--glow-3), transparent 60%),
+			var(--bg);
+	}
+	canvas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		transition: opacity 1.2s ease;
+	}
+	canvas.ready {
+		opacity: 1;
+	}
+	.bg-grain {
+		position: absolute;
+		inset: 0;
+		opacity: var(--grain-opacity);
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+	}
+	.bg-vignette {
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(120% 90% at 50% 40%, transparent 55%, var(--vignette) 100%);
+	}
+</style>
+
+<script>
+	type Palette = {
+		base: string;
+		blobs: string[];
+		blobAlpha: number;
+		blend: GlobalCompositeOperation;
+		dot: string; // "r,g,b"
+		line: string; // "r,g,b"
+		lineAlpha: number;
+	};
+
+	const PALETTES: Record<'light' | 'dark', Palette> = {
+		dark: {
+			base: '#070a16',
+			blobs: ['#4f46e5', '#9333ea', '#0891b2', '#db2777', '#2563eb'],
+			blobAlpha: 0.5,
+			blend: 'screen',
+			dot: '205,215,255',
+			line: '160,175,255',
+			lineAlpha: 0.22,
+		},
+		light: {
+			base: '#f5f6fb',
+			blobs: ['#a5b4fc', '#f0abfc', '#67e8f9', '#fda4af', '#93c5fd'],
+			blobAlpha: 0.55,
+			blend: 'source-over',
+			dot: '79,70,229',
+			line: '99,102,241',
+			lineAlpha: 0.16,
+		},
+	};
+
+	// Each glow drifts around an anchor point (fractions of the viewport) on a slow Lissajous path.
+	const BLOBS = [
+		{ x: 0.15, y: 0.2, ax: 0.16, ay: 0.12, sx: 0.07, sy: 0.09, r: 0.55, p: 0 },
+		{ x: 0.85, y: 0.15, ax: 0.14, ay: 0.16, sx: 0.06, sy: 0.05, r: 0.5, p: 1.7 },
+		{ x: 0.7, y: 0.85, ax: 0.18, ay: 0.1, sx: 0.05, sy: 0.08, r: 0.6, p: 3.1 },
+		{ x: 0.25, y: 0.8, ax: 0.12, ay: 0.14, sx: 0.08, sy: 0.06, r: 0.45, p: 4.4 },
+		{ x: 0.5, y: 0.45, ax: 0.2, ay: 0.18, sx: 0.04, sy: 0.05, r: 0.4, p: 5.6 },
+	];
+
+	const AURORA_SCALE = 0.25; // aurora canvas renders at 1/4 resolution
+	const LINK_DIST = 130;
+	const POINTER_DIST = 170;
+
+	const root = document.documentElement;
+	const container = document.querySelector<HTMLElement>('.bg')!;
+	const aurora = document.querySelector<HTMLCanvasElement>('.bg-aurora')!;
+	const field = document.querySelector<HTMLCanvasElement>('.bg-particles')!;
+	const actx = aurora.getContext('2d')!;
+	const pctx = field.getContext('2d')!;
+
+	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+	let palette = PALETTES[root.dataset.theme === 'dark' ? 'dark' : 'light'];
+	let width = 0;
+	let height = 0;
+	let dpr = 1;
+	let rafId = 0;
+	let lastTime = 0;
+	let clock = 0; // seconds of animation time (doesn't advance while paused)
+	const pointer = { x: -9999, y: -9999, active: false };
+
+	type Particle = { x: number; y: number; vx: number; vy: number; r: number; tw: number };
+	let particles: Particle[] = [];
+
+	function rgba(hex: string, a: number): string {
+		const n = parseInt(hex.slice(1), 16);
+		return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+	}
+
+	function makeParticles() {
+		const target = Math.round((width * height) / 15000);
+		const count = Math.max(24, Math.min(width < 640 ? 45 : 110, target));
+		particles = Array.from({ length: count }, () => {
+			const angle = Math.random() * Math.PI * 2;
+			const speed = 6 + Math.random() * 14; // px per second
+			return {
+				x: Math.random() * width,
+				y: Math.random() * height,
+				vx: Math.cos(angle) * speed,
+				vy: Math.sin(angle) * speed,
+				r: 0.8 + Math.random() * 1.6,
+				tw: Math.random() * Math.PI * 2,
+			};
+		});
+	}
+
+	/** Returns true if the canvas size actually changed. */
+	function resize(): boolean {
+		const w = container.clientWidth;
+		const h = container.clientHeight;
+		const ratio = Math.min(window.devicePixelRatio || 1, 2);
+		if (w === width && h === height && ratio === dpr) return false;
+
+		const widthChanged = w !== width;
+		width = w;
+		height = h;
+		dpr = ratio;
+		aurora.width = Math.max(1, Math.round(width * AURORA_SCALE));
+		aurora.height = Math.max(1, Math.round(height * AURORA_SCALE));
+		field.width = Math.round(width * dpr);
+		field.height = Math.round(height * dpr);
+		pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		// Only reseed on width changes (rotation, window resize) — not on height-only changes,
+		// so the particle field doesn't jump around.
+		if (widthChanged || particles.length === 0) makeParticles();
+		return true;
+	}
+
+	function drawAurora(t: number) {
+		const w = aurora.width;
+		const h = aurora.height;
+		const size = Math.max(w, h);
+		actx.globalCompositeOperation = 'source-over';
+		actx.fillStyle = palette.base;
+		actx.fillRect(0, 0, w, h);
+		actx.globalCompositeOperation = palette.blend;
+
+		BLOBS.forEach((b, i) => {
+			const cx = (b.x + b.ax * Math.sin(t * b.sx + b.p)) * w;
+			const cy = (b.y + b.ay * Math.cos(t * b.sy + b.p * 1.3)) * h;
+			const radius = size * b.r * (1 + 0.12 * Math.sin(t * 0.11 + b.p));
+			const color = palette.blobs[i % palette.blobs.length];
+			const g = actx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+			g.addColorStop(0, rgba(color, palette.blobAlpha));
+			g.addColorStop(0.45, rgba(color, palette.blobAlpha * 0.45));
+			g.addColorStop(1, rgba(color, 0));
+			actx.fillStyle = g;
+			actx.fillRect(0, 0, w, h);
+		});
+	}
+
+	function stepParticles(dt: number) {
+		for (const p of particles) {
+			// Gentle push away from the pointer.
+			if (pointer.active) {
+				const dx = p.x - pointer.x;
+				const dy = p.y - pointer.y;
+				const d2 = dx * dx + dy * dy;
+				if (d2 < POINTER_DIST * POINTER_DIST && d2 > 1) {
+					const d = Math.sqrt(d2);
+					const force = (1 - d / POINTER_DIST) * 60 * dt;
+					p.x += (dx / d) * force;
+					p.y += (dy / d) * force;
+				}
+			}
+			p.x += p.vx * dt;
+			p.y += p.vy * dt;
+			p.tw += dt * 1.5;
+			// Wrap around the edges.
+			if (p.x < -20) p.x = width + 20;
+			else if (p.x > width + 20) p.x = -20;
+			if (p.y < -20) p.y = height + 20;
+			else if (p.y > height + 20) p.y = -20;
+		}
+	}
+
+	function drawParticles() {
+		pctx.clearRect(0, 0, width, height);
+		pctx.lineWidth = 1;
+
+		for (let i = 0; i < particles.length; i++) {
+			const a = particles[i];
+			for (let j = i + 1; j < particles.length; j++) {
+				const b = particles[j];
+				const dx = a.x - b.x;
+				const dy = a.y - b.y;
+				const d2 = dx * dx + dy * dy;
+				if (d2 < LINK_DIST * LINK_DIST) {
+					const alpha = (1 - Math.sqrt(d2) / LINK_DIST) * palette.lineAlpha;
+					pctx.strokeStyle = `rgba(${palette.line},${alpha})`;
+					pctx.beginPath();
+					pctx.moveTo(a.x, a.y);
+					pctx.lineTo(b.x, b.y);
+					pctx.stroke();
+				}
+			}
+			if (pointer.active) {
+				const dx = a.x - pointer.x;
+				const dy = a.y - pointer.y;
+				const d = Math.sqrt(dx * dx + dy * dy);
+				if (d < POINTER_DIST) {
+					pctx.strokeStyle = `rgba(${palette.line},${(1 - d / POINTER_DIST) * palette.lineAlpha * 2})`;
+					pctx.beginPath();
+					pctx.moveTo(a.x, a.y);
+					pctx.lineTo(pointer.x, pointer.y);
+					pctx.stroke();
+				}
+			}
+		}
+
+		for (const p of particles) {
+			const alpha = 0.45 + 0.35 * Math.sin(p.tw);
+			pctx.fillStyle = `rgba(${palette.dot},${alpha})`;
+			pctx.beginPath();
+			pctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+			pctx.fill();
+		}
+	}
+
+	function render() {
+		drawAurora(clock);
+		drawParticles();
+	}
+
+	function frame(now: number) {
+		const dt = Math.min((now - lastTime) / 1000, 0.05); // clamp after tab switches / jank
+		lastTime = now;
+		clock += dt;
+		stepParticles(dt);
+		render();
+		rafId = requestAnimationFrame(frame);
+	}
+
+	function start() {
+		if (rafId || reducedMotion.matches || document.hidden) return;
+		lastTime = performance.now();
+		rafId = requestAnimationFrame(frame);
+	}
+
+	function stop() {
+		cancelAnimationFrame(rafId);
+		rafId = 0;
+	}
+
+	function init() {
+		resize();
+		clock = 20 + Math.random() * 60; // start at a random point so every visit looks a bit different
+		render();
+		aurora.classList.add('ready');
+		field.classList.add('ready');
+		start();
+	}
+
+	let resizeTimer: number | undefined;
+	window.addEventListener('resize', () => {
+		clearTimeout(resizeTimer);
+		resizeTimer = window.setTimeout(() => {
+			if (resize()) render();
+		}, 150);
+	});
+
+	window.addEventListener(
+		'pointermove',
+		(e) => {
+			pointer.x = e.clientX;
+			pointer.y = e.clientY;
+			pointer.active = e.pointerType === 'mouse';
+		},
+		{ passive: true },
+	);
+	document.documentElement.addEventListener('pointerleave', () => (pointer.active = false));
+
+	document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+
+	reducedMotion.addEventListener('change', () => {
+		if (reducedMotion.matches) {
+			stop();
+			render();
+		} else start();
+	});
+
+	// Follow the theme toggle.
+	new MutationObserver(() => {
+		palette = PALETTES[root.dataset.theme === 'dark' ? 'dark' : 'light'];
+		if (!rafId) render();
+	}).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+
+	init();
+</script>

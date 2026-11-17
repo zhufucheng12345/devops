@@ -1,0 +1,18 @@
+---
+import { SITE } from '../config';
+
+interface Props {
+	date: Date;
+}
+
+const { date } = Astro.props;
+// Dates in frontmatter are parsed as UTC midnight; format in UTC so the day never shifts.
+const label = date.toLocaleDateString(SITE.locale, {
+	year: 'numeric',
+	month: 'short',
+	day: 'numeric',
+	timeZone: 'UTC',
+});
+---
+
+<time datetime={date.toISOString()}>{label}</time>

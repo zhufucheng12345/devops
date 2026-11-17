@@ -1,0 +1,41 @@
+---
+import type { GetStaticPaths } from 'astro';
+import PostList from '../../components/PostList.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPosts, getTags, type Post, tagSlug } from '../../utils/posts';
+
+export const getStaticPaths = (async () => {
+	const posts = await getPosts();
+	return getTags(posts).map((tag) => ({
+		params: { tag: tag.slug },
+		props: {
+			name: tag.name,
+			posts: posts.filter((p) => p.data.tags.some((t) => tagSlug(t) === tag.slug)),
+		},
+	}));
+}) satisfies GetStaticPaths;
+
+interface Props {
+	name: string;
+	posts: Post[];
+}
+
+const { name, posts } = Astro.props;
+---
+
+<BaseLayout title={`Tag: ${name}`} description={`Posts tagged “${name}”.`}>
+	<p class="back"><a href="/tags/">← All tags</a></p>
+	<h1 class="page-title">#{name}</h1>
+	<p class="page-subtitle">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+	<PostList posts={posts} />
+</BaseLayout>
+
+<style>
+	.back {
+		margin: 0 0 0.5rem;
+		font-size: 0.9rem;
+	}
+	.back a {
+		text-decoration: none;
+	}
+</style>
