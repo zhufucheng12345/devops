@@ -40,9 +40,13 @@ const initials = PROFILE.name
 			)
 		}
 
-		<div class="intro glass reveal" style="--d: 4">
-			{PROFILE.intro.map((p) => <p>{p}</p>)}
-		</div>
+		{
+			PROFILE.intro.length > 0 && (
+				<div class="intro glass reveal" style="--d: 4">
+					{PROFILE.intro.map((p) => <p>{p}</p>)}
+				</div>
+			)
+		}
 
 		{
 			SOCIAL_LINKS.length > 0 && (

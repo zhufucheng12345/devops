@@ -6,7 +6,7 @@ export const SITE = {
 	url: 'https://example.com',
 	title: 'My Blog',
 	description: 'Notes on software, infrastructure, and whatever else I am learning.',
-	author: 'Your Name',
+	author: '2026316010012-朱富成',
 	/** Used for <html lang> and date formatting. */
 	lang: 'en',
 	locale: 'en-US',

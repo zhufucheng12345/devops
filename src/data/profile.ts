@@ -9,7 +9,7 @@ export const PROFILE = {
 	/** Your display name — change SITE.author in src/config.ts. */
 	name: SITE.author,
 	/** One short line under your name. */
-	role: 'DevOps Engineer · Builder · Lifelong Learner',
+	role: 'A third-year computer science student.',
 	/** Optional, e.g. 'Berlin, Germany'. Leave empty to hide. */
 	location: '',
 	/**
@@ -18,11 +18,8 @@ export const PROFILE = {
 	 */
 	avatar: '',
 
-	/** Short introduction on the home page (1–2 sentences each). */
-	intro: [
-		'Hi there! I build and run the systems that keep software shipping — pipelines, containers, clusters, and the occasional 3 a.m. fix.',
-		'I like simple tools, clear writing, and automating anything I have to do twice. This is my small corner of the internet.',
-	],
+	/** Short introduction on the home page (1–2 sentences each). Leave empty to hide the intro card. */
+	intro: [] as string[],
 
 	/** Longer bio for the About page. */
 	about: [
